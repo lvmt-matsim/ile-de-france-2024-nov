@@ -99,13 +99,38 @@ def execute(context):
     # Consumption units
     df = pd.merge(df, hts.calculate_consumption_units(df), on = "household_id")
 
+    # Housing type, ML
+    df.loc[df["TYPL"] == "1", "housing_type"] = "house"
+    df.loc[df["TYPL"] == "2", "housing_type"] = "flat"
+    df.loc[df["TYPL"].isin(["3","4","5","6","Z"]), "housing_type"] = "others"
+    df["housing_type"] = df["housing_type"].astype("category")
+  
+    # Household type, ML
+    df.loc[df["SFM"] == "11", "household_type"] = "SM"
+    df.loc[df["SFM"] == "12", "household_type"] = "SW"
+    df.loc[df["SFM"] == "21", "household_type"] = "MFF"
+    df.loc[df["SFM"] == "22", "household_type"] = "MFM"
+    df.loc[df["SFM"].isin(["30"]), "household_type"] = "CWOC"
+    df.loc[df["SFM"].isin(["31","32","33","34"]), "household_type"] = "CWC"
+    df.loc[df["SFM"].isin(["40","51","52","53","54","61","62","70","ZZ"]), "household_type"] = "others"
+    df["household_type"] = df["household_type"].astype("category")
+  
+    # Parking, ML
+    df.loc[df["GARL"] == "1", "parking"] = 1
+    df.loc[df["GARL"].isin(["2","Z"]), "parking"] = 0
+    df["parking"] = df["parking"].astype(np.int)
+  
+    # Building construction data, ML
+    df["building_age"] = df["ACHLR"].astype("category")
+
     df = df[[
         "person_id", "household_id", "weight",
         "iris_id", "commune_id", "departement_id",
         "age", "sex", "couple",
         "commute_mode", "employed",
         "studies", "number_of_vehicles", "household_size",
-        "consumption_units", "socioprofessional_class"
+        "consumption_units", "socioprofessional_class",
+        "housing_type", "household_type", "parking", "building_age" # Added, ML
     ]]
 
     if context.config("use_urban_type"):
