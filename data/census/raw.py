@@ -30,7 +30,11 @@ COLUMNS_DTYPES = {
     "TACT":"str", 
     "TRANS":"str",
     "VOIT":"str", 
-    "DEROU":"str"
+    "DEROU":"str", # from here, we add new variables, ML
+    "TYPL":"str", 
+    "SFM":"str",
+    "GARL":"str",
+    "ACHLR":"str" # this one for exposure
 }
 
 def execute(context):
