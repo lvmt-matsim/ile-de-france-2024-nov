@@ -83,6 +83,12 @@ def execute(context):
     df_persons.loc[df_persons["SEXE"] == 2, "sex"] = "female"
     df_persons["sex"] = df_persons["sex"].astype("category")
 
+    # Clean PKVPTRAV: BYIN 6/2023
+    df_persons.loc[df_persons["PKVPTRAV"] == 1, "parking_at_workplace"] = 1
+    df_persons.loc[df_persons["PKVPTRAV"] == 2, "parking_at_workplace"] = 0
+    df_persons["parking_at_workplace"] = df_persons["parking_at_workplace"].replace(np.nan, 0)
+    df_persons["parking_at_workplace"] = df_persons["parking_at_workplace"].astype(np.int)
+    
     # Household size
     df_households["household_size"] = df_households["MNP"].astype(int)
 
@@ -113,6 +119,43 @@ def execute(context):
     df_households["income_class"] = df_households["REVENU"] - 1
     df_households.loc[df_households["income_class"].isin([10.0, 11.0, np.nan]), "income_class"] = -1
     df_households["income_class"] = df_households["income_class"].astype(int)
+
+    # vehicle energy type: BYIN 6/2023
+    df_households.loc[df_households["ENERGV1"] == 1, "ENERGV1_egt"] = "Sans plomb"
+    df_households.loc[df_households["ENERGV1"] == 2, "ENERGV1_egt"] = "Super"
+    df_households.loc[df_households["ENERGV1"] == 3, "ENERGV1_egt"] = "Diesel"
+    df_households.loc[df_households["ENERGV1"] == 4, "ENERGV1_egt"] = "Hybride"
+    df_households.loc[df_households["ENERGV1"] == 5, "ENERGV1_egt"] = "Electrique"
+    df_households.loc[df_households["ENERGV1"] == 6, "ENERGV1_egt"] = "Autre (GPL)"
+    df_households["ENERGV1_egt"] = df_households["ENERGV1_egt"].astype("category")
+    df_households["APMCV1_egt"] = df_households["APMCV1"].astype("category")
+
+    df_households.loc[df_households["ENERGV2"] == 1, "ENERGV2_egt"] = "Sans plomb"
+    df_households.loc[df_households["ENERGV2"] == 2, "ENERGV2_egt"] = "Super"
+    df_households.loc[df_households["ENERGV2"] == 3, "ENERGV2_egt"] = "Diesel"
+    df_households.loc[df_households["ENERGV2"] == 4, "ENERGV2_egt"] = "Hybride"
+    df_households.loc[df_households["ENERGV2"] == 5, "ENERGV2_egt"] = "Electrique"
+    df_households.loc[df_households["ENERGV2"] == 6, "ENERGV2_egt"] = "Autre (GPL)"
+    df_households["ENERGV2_egt"] = df_households["ENERGV2_egt"].astype("category")
+    df_households["APMCV2_egt"] = df_households["APMCV2"].astype("category")
+
+    df_households.loc[df_households["ENERGV3"] == 1, "ENERGV3_egt"] = "Sans plomb"
+    df_households.loc[df_households["ENERGV3"] == 2, "ENERGV3_egt"] = "Super"
+    df_households.loc[df_households["ENERGV3"] == 3, "ENERGV3_egt"] = "Diesel"
+    df_households.loc[df_households["ENERGV3"] == 4, "ENERGV3_egt"] = "Hybride"
+    df_households.loc[df_households["ENERGV3"] == 5, "ENERGV3_egt"] = "Electrique"
+    df_households.loc[df_households["ENERGV3"] == 6, "ENERGV3_egt"] = "Autre (GPL)"
+    df_households["ENERGV3_egt"] = df_households["ENERGV3_egt"].astype("category")
+    df_households["APMCV3_egt"] = df_households["APMCV3"].astype("category")
+
+    df_households.loc[df_households["ENERGV4"] == 1, "ENERGV4_egt"] = "Sans plomb"
+    df_households.loc[df_households["ENERGV4"] == 2, "ENERGV4_egt"] = "Super"
+    df_households.loc[df_households["ENERGV4"] == 3, "ENERGV4_egt"] = "Diesel"
+    df_households.loc[df_households["ENERGV4"] == 4, "ENERGV4_egt"] = "Hybride"
+    df_households.loc[df_households["ENERGV4"] == 5, "ENERGV4_egt"] = "Electrique"
+    df_households.loc[df_households["ENERGV4"] == 6, "ENERGV4_egt"] = "Autre (GPL)"
+    df_households["ENERGV4_egt"] = df_households["ENERGV4_egt"].astype("category")
+    df_households["APMCV4_egt"] = df_households["APMCV4"].astype("category")
 
     # Impute urban type
     if context.config("use_urban_type"):
