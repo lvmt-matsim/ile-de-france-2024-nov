@@ -14,12 +14,15 @@ This stage fuses census data with HTS data.
 """
 
 def configure(context):
+    # population data
     context.stage("synthesis.population.matched")
     context.stage("synthesis.population.sampled")
     context.stage("synthesis.population.income.selected")
-
+    # HTS data
     hts = context.config("hts")
     context.stage("data.hts.selected", alias = "hts")
+    # PT share
+    context.stage("data.od.public_transport_share")
 
 def execute(context):
     # Select population columns
@@ -27,8 +30,8 @@ def execute(context):
         "person_id", "household_id",
         "census_person_id", "census_household_id",
         "age", "sex", "employed", "studies",
-        "number_of_vehicles", "household_size", "consumption_units",
-        "socioprofessional_class"
+        "number_of_vehicles", "household_size", "consumption_units", "socioprofessional_class", 
+        "housing_type", "household_type", "parking", "building_age" # Added, ML
     ]]
 
     # Attach matching information
@@ -45,12 +48,17 @@ def execute(context):
     df_hts_households = df_hts_households.rename(columns = { "household_id": "hts_household_id" })
 
     df_population = pd.merge(df_population, df_hts_persons[[
-        "hts_id", "hts_household_id", "has_license", "has_pt_subscription", "is_passenger"
+        "hts_id", "hts_household_id", "has_license", "has_pt_subscription", "is_passenger", "parking_at_workplace" # added ML
     ]], on = "hts_id")
+    df_population["parking_at_workplace"] = df_population.groupby("household_id")["parking_at_workplace"].transform("max")
 
     df_population = pd.merge(df_population, df_hts_households[[
-        "hts_household_id", "number_of_bikes"
+        "hts_household_id", "number_of_bikes",
+        "ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt" # Added, ML
     ]], on = "hts_household_id")
+
+    # Check BYIN, to remove !
+    df_population.to_csv("%s/%spopulation_test.csv" % (output_path, output_prefix), sep=";", index=None)
 
     # Attach income
     df_income = context.stage("synthesis.population.income.selected")
@@ -91,5 +99,9 @@ def execute(context):
     df_population.loc[df_population["age"].between(11,14),"age_range"] = "middle_school"
     df_population.loc[df_population["age"].between(15,17),"age_range"] = "high_school"
     df_population["age_range"] = df_population["age_range"].astype("category")
+
+    # Read PT share by commune
+    df_pt = context.stage("data.od.public_transport_share")
+    df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on=    , right_on="commune") #### PB : left_on : label commune ????
     
     return df_population
