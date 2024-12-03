@@ -9,11 +9,12 @@ This stage loads the raw data of the Île-de-France HTS (EGT).
 MENAGES_COLUMNS = [
     "RESDEP", "NQUEST", "POIDSM", "NB_VELO", "NB_VD", "REVENU", "RESCOMM",
     "NB_2RM", "MNP"
+    "ENERGV1", "APMCV1", "ENERGV2", "APMCV2", "ENERGV3", "APMCV3", "ENERGV4", "APMCV4" # add the new EGT variable 06/2023
 ]
 
 PERSONNES_COLUMNS = [
     "RESDEP", "NP", "POIDSP", "NQUEST", "SEXE", "AGE", "PERMVP",
-    "ABONTC", "OCCP", "PERM2RM", "NBDEPL", "CS8"
+    "ABONTC", "OCCP", "PERM2RM", "NBDEPL", "CS8", "PKVPTRAV"
 ]
 
 DEPLACEMENTS_COLUMNS = [
