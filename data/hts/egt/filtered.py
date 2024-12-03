@@ -41,10 +41,10 @@ def execute(context):
         df_households = df_households[df_households["household_id"].isin(df_persons["household_id"])]
 
     # Finish up
-    household_columns = hts.HOUSEHOLD_COLUMNS + ["income_class"] + ["egt_household_id"]
+    household_columns = hts.HOUSEHOLD_COLUMNS + ["income_class"] + ["egt_household_id"]  + ["ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt"] # ML to compare
     df_households = df_households[household_columns]
     
-    person_columns = hts.PERSON_COLUMNS + ["egt_household_id", "egt_person_id"]
+    person_columns = hts.PERSON_COLUMNS + ["egt_household_id", "egt_person_id"] + ["parking_at_workplace"] # ML
     if "urban_type" in df_persons: person_columns.append("urban_type")
     df_persons = df_persons[person_columns]
     
