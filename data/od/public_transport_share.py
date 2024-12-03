@@ -48,4 +48,5 @@ def execute(context):
     # Clean output df
     df_pt = df_pt[["origin_id","PT_share"]]
     df_pt = df_pt.rename(columns={"origin_id":"commune"})
+    df_pt.to_csv("%s/%PT_share.csv" % (output_path, output_prefix), sep=";", index=None)
     return df_pt
