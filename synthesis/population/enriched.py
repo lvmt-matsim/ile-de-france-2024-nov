@@ -18,6 +18,7 @@ def configure(context):
     context.stage("synthesis.population.matched")
     context.stage("synthesis.population.sampled")
     context.stage("synthesis.population.income.selected")
+    context.stage("synthesis.population.spatial.locations")
     # HTS data
     hts = context.config("hts")
     context.stage("data.hts.selected", alias = "hts")
@@ -56,6 +57,13 @@ def execute(context):
         "hts_household_id", "number_of_bikes",
         "ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt" # Added, ML
     ]], on = "hts_household_id")
+
+    # Attach commune locations to persons
+    df_locations = context.stage("synthesis.population.spatial.locations")[["person_id", "purpose", "commune_id"]] # Added, ML
+    df_work_education = df_locations[df_locations.purpose.isin(["work", "education"])].reset_index(drop=True).rename(columns={"commune_id":"work_commune"}) # Added, ML
+    df_home = df_locations[df_locations.purpose == "home"].reset_index(drop=True).rename(columns={"commune_id":"home_commune"}) # Added, ML
+    df_population = pd.merge(left=df_population, right=df_home["person_id", "home_commune"], how="left", on="person_id") # Added, ML
+    df_population = pd.merge(left=df_population, right=df_work_education["person_id", "work_commune"], how="left", on="person_id") # Added, ML
 
     # Check BYIN, to remove !
     df_population.to_csv("%s/%spopulation_test.csv" % (output_path, output_prefix), sep=";", index=None)
@@ -102,6 +110,7 @@ def execute(context):
 
     # Read PT share by commune
     df_pt = context.stage("data.od.public_transport_share")
-    df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on=    , right_on="commune") #### PB : left_on : label commune ????
+    df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="home_commune", right_on="commune").rename(columns={"PT_share":"PT_share_home"}) #### ML
+    df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="work_commune", right_on="commune").rename(columns={"PT_share":"PT_share_work"}) #### ML
     
     return df_population
