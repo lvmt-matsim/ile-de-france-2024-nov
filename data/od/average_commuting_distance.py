@@ -9,6 +9,8 @@ def configure(context):
     context.stage("data.od.cleaned")
     context.stage("data.spatial.codes")
     context.stage("data.spatial.centroid_distances")
+    context.config("output_path")
+    context.config("output_prefix", "ile_de_france_")
 
 def fix_origins(df, commune_ids): 
     existing_ids = set(np.unique(df["origin_id"]))
@@ -25,6 +27,9 @@ def fix_origins(df, commune_ids):
     )]).sort_values(["origin_id", "destination_id"])
 
 def execute(context):
+    output_path = context.config("output_path")
+    output_prefix = context.config("output_prefix")
+
     # Load and clean data
     df_work, df_education = context.stage("data.od.cleaned")
     df_distances = context.stage("data.spatial.centroid_distances")
