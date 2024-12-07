@@ -58,7 +58,6 @@ def execute(context):
     df_population = pd.merge(df_population, df_hts_persons[[
         "hts_id", "hts_household_id", "has_license", "has_pt_subscription", "is_passenger", "parking_at_workplace" # added ML
     ]], on = "hts_id")
-    df_population["parking_at_workplace"] = df_population.groupby("household_id")["parking_at_workplace"].transform("max")
 
     df_population = pd.merge(df_population, df_hts_households[[
         "hts_household_id", "number_of_bikes",
@@ -120,7 +119,7 @@ def execute(context):
     df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="home_commune", right_on="commune").rename(columns={"PT_share":"PT_share_home"}) #### ML
     df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="work_commune", right_on="commune").rename(columns={"PT_share":"PT_share_work"}) #### ML
 
-    # Load data on average commuting distance by commune and distancesbetween communes
+    # Load data on average commuting distance by commune and distances between communes
     df_commuting_dist = context.stage("data.od.average_commuting_distance").rename(columns={"mean_commuting_distance":"commuting_distance"}) #### ML
     df_distances = context.stage("data.spatial.centroid_distances").rename(columns={"centroid_distance":"commuting_distance"})  #### ML
 
