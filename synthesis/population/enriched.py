@@ -22,8 +22,10 @@ def configure(context):
     # HTS data
     hts = context.config("hts")
     context.stage("data.hts.selected", alias = "hts")
-    # PT share
+    # PT share and commuting distance by commune
     context.stage("data.od.public_transport_share")
+    context.stage("data.od.average_commuting_distance")
+    context.stage("data.spatial.centroid_distances")
 
 def execute(context):
     # Select population columns
@@ -108,9 +110,19 @@ def execute(context):
     df_population.loc[df_population["age"].between(15,17),"age_range"] = "high_school"
     df_population["age_range"] = df_population["age_range"].astype("category")
 
-    # Read PT share by commune
-    df_pt = context.stage("data.od.public_transport_share")
+    # Add accesssibility proxy (public transport modal share) for home and work/education communes
+    df_pt = context.stage("data.od.public_transport_share") #### ML
     df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="home_commune", right_on="commune").rename(columns={"PT_share":"PT_share_home"}) #### ML
     df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="work_commune", right_on="commune").rename(columns={"PT_share":"PT_share_work"}) #### ML
-    
+
+    # Load data on average commuting distance by commune and distancesbetween communes
+    df_commuting_dist = context.stage("data.od.average_commuting_distance").rename(columns={"mean_commuting_distance":"commuting_distance"}) #### ML
+    df_distances = context.stage("data.spatial.centroid_distances").rename(columns={"centroid_distance":"commuting_distance"})  #### ML
+
+    # Add individuals commuting distance
+    df_population_commuting = df_population[df_population["work_commune"].isnan()==False]  #### ML
+    df_population_commuting = pd.merge(left=df_population_commuting, right=df_distances, how="left", left_on=["home_commune", "work_commune"] ,right_on=["origin_id", "destination_id"])  #### ML
+    df_population_no_commute = df_population[df_population["work_commune"].isnan()==True]  #### ML
+    df_population_no_commute = pd.merge(left=df_population_no_commute, right=df_commuting_dist, how="left", left_on="home_commune", right_on="commune") #### ML
+    df_population = pd.concat([df_population_commuting, df_population_no_commute]).sort_index()  #### ML
     return df_population
