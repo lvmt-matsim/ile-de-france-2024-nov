@@ -8,6 +8,8 @@ Calculate the public transport share by commune
 def configure(context):
     context.stage("data.od.cleaned")
     context.stage("data.spatial.codes")
+    context.config("output_path")
+    context.config("output_prefix", "ile_de_france_")
 
 def fix_origins(df, commune_ids, purpose,category): 
     existing_ids = set(np.unique(df["origin_id"]))
@@ -26,8 +28,10 @@ def fix_origins(df, commune_ids, purpose,category):
         rows, columns = ["origin_id", "destination_id", category, "weight"]
     )]).sort_values(["origin_id", "destination_id"])
   
-# df_work["origin_id", "destination_id", "commute_mode","weight"]
 def execute(context):
+    output_path = context.config("output_path")
+    output_prefix = context.config("output_prefix")
+    
     # Municipalities list
     df_codes = context.stage("data.spatial.codes")
     commune_ids = set(df_codes["commune_id"].unique())
@@ -36,7 +40,7 @@ def execute(context):
     df_work, df_education = context.stage("data.od.cleaned")
     df_work = fix_origins(df_work, commune_ids, "work","commute_mode")
 
-    # Aggregate work (we do not consider different modes at the moment)
+    # Aggregate work for pt modal share
     df_pt = df_work[df_work.commute_mode == "pt"].reset_index(drop=True)
     df_pt = df_pt[["origin_id", "weight"]].groupby(["origin_id"]).sum().reset_index()
 
