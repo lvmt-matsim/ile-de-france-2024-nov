@@ -18,7 +18,9 @@ def configure(context):
     context.stage("synthesis.population.matched")
     context.stage("synthesis.population.sampled")
     context.stage("synthesis.population.income.selected")
-    context.stage("synthesis.population.spatial.locations")
+    context.stage("synthesis.population.spatial.locations") # ML
+    context.config("output_path") # ML
+    context.config("output_prefix", "ile_de_france_") # ML
     # HTS data
     hts = context.config("hts")
     context.stage("data.hts.selected", alias = "hts")
@@ -28,6 +30,9 @@ def configure(context):
     context.stage("data.spatial.centroid_distances")
 
 def execute(context):
+    output_path = context.config("output_path")
+    output_prefix = context.config("output_prefix")
+    
     # Select population columns
     df_population = context.stage("synthesis.population.sampled")[[
         "person_id", "household_id",
