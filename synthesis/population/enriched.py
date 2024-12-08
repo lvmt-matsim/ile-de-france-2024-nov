@@ -21,6 +21,7 @@ def configure(context):
     context.stage("synthesis.population.spatial.locations") # ML
     context.config("output_path") # ML
     context.config("output_prefix", "ile_de_france_") # ML
+    context.config("vehicles_method", "default") # ML
     # HTS data
     hts = context.config("hts")
     context.stage("data.hts.selected", alias = "hts")
@@ -30,8 +31,9 @@ def configure(context):
     context.stage("data.spatial.centroid_distances")
 
 def execute(context):
-    output_path = context.config("output_path")
-    output_prefix = context.config("output_prefix")
+    output_path = context.config("output_path") # ML
+    output_prefix = context.config("output_prefix") # ML
+    car_fleet_synthesis_method = context.config("vehicles_method", "default") # ML
     
     # Select population columns
     df_population = context.stage("synthesis.population.sampled")[[
@@ -55,21 +57,20 @@ def execute(context):
     df_hts_persons = df_hts_persons.rename(columns = { "person_id": "hts_id", "household_id": "hts_household_id" })
     df_hts_households = df_hts_households.rename(columns = { "household_id": "hts_household_id" })
 
-    df_population = pd.merge(df_population, df_hts_persons[[
-        "hts_id", "hts_household_id", "has_license", "has_pt_subscription", "is_passenger", "parking_at_workplace" # added ML
-    ]], on = "hts_id")
-
-    df_population = pd.merge(df_population, df_hts_households[[
-        "hts_household_id", "number_of_bikes",
-        "ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt" # Added, ML
-    ]], on = "hts_household_id")
+    person_hts_columns = ["hts_id", "hts_household_id", "has_license", "has_pt_subscription", "is_passenger"]
+    household_hts_columns = ["hts_household_id", "number_of_bikes"]
+    if car_fleet_synthesis_method == "household_assignment" : # Added, ML
+        person_hts_columns.append("parking_at_workplace")
+        household_hts_columns.extend(["ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt"])
+    df_population = pd.merge(df_population, df_hts_persons[person_hts_columns], on = "hts_id")
+    df_population = pd.merge(df_population, df_hts_households[household_hts_columns], on = "hts_household_id")
 
     # Attach commune locations to persons
     df_locations = context.stage("synthesis.population.spatial.locations")[["person_id", "purpose", "commune_id"]] # Added, ML
-    df_work_education = df_locations[df_locations.purpose.isin(["work", "education"])].reset_index(drop=True).rename(columns={"commune_id":"work_commune"}) # Added, ML
-    df_home = df_locations[df_locations.purpose == "home"].reset_index(drop=True).rename(columns={"commune_id":"home_commune"}) # Added, ML
-    df_population = pd.merge(left=df_population, right=df_home["person_id", "home_commune"], how="left", on="person_id") # Added, ML
-    df_population = pd.merge(left=df_population, right=df_work_education["person_id", "work_commune"], how="left", on="person_id") # Added, ML
+    df_work_education = df_locations[df_locations.purpose.isin(["work", "education"])].reset_index(drop=True).rename(columns={"commune_id":"work_education_commune"}) # Added, ML
+    df_home = df_locations[df_locations.purpose == "home"].reset_index(drop=True) # Added, ML
+    df_population = pd.merge(left=df_population, right=df_home["person_id", "commune_id"], how="left", on="person_id") # Added, ML
+    df_population = pd.merge(left=df_population, right=df_work_education["person_id", "work_education_commune"], how="left", on="person_id") # Added, ML
 
     # Check BYIN, to remove !
     df_population.to_csv("%s/%spopulation_test.csv" % (output_path, output_prefix), sep=";", index=None)
@@ -79,15 +80,6 @@ def execute(context):
     df_population = pd.merge(df_population, df_income[[
         "household_id", "household_income"
     ]], on = "household_id")
-
-    # Check consistency
-    final_size = len(df_population)
-    final_person_ids = len(df_population["person_id"].unique())
-    final_household_ids = len(df_population["household_id"].unique())
-
-    assert initial_size == final_size
-    assert initial_person_ids == final_person_ids
-    assert initial_household_ids == final_household_ids
 
     # Add car availability
     df_number_of_cars = df_population[["household_id", "number_of_vehicles"]].drop_duplicates("household_id")
@@ -114,19 +106,52 @@ def execute(context):
     df_population.loc[df_population["age"].between(15,17),"age_range"] = "high_school"
     df_population["age_range"] = df_population["age_range"].astype("category")
 
-    # Add accesssibility proxy (public transport modal share) for home and work/education communes
-    df_pt = context.stage("data.od.public_transport_share") #### ML
-    df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="home_commune", right_on="commune").rename(columns={"PT_share":"PT_share_home"}) #### ML
-    df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="work_commune", right_on="commune").rename(columns={"PT_share":"PT_share_work"}) #### ML
+    # Add individuals commuting distance  # Added ML
+    df_distances = context.stage("data.spatial.centroid_distances").rename(columns={"centroid_distance":"commuting_distance"})
+    df_population_commuting = df_population[df_population["work_education_commune"].isnan()==False]
+    df_population_commuting = pd.merge(left=df_population_commuting, right=df_distances, how="left", left_on=["commune_id", "work_education_commune"] ,right_on=["origin_id", "destination_id"])
+    df_population_no_commute = df_population[df_population["work_education_commune"].isnan()==True]
+    if car_fleet_synthesis_method == "household_assignment" : # Impute the mean commuting distance within the residence commune if no commuting distance
+        df_commuting_dist = context.stage("data.od.average_commuting_distance")
+        df_population_no_commute = pd.merge(left=df_population_no_commute, right=df_commuting_dist, how="left", on="commune_id")
+    df_population = pd.concat([df_population_commuting, df_population_no_commute]).sort_index()
 
-    # Load data on average commuting distance by commune and distances between communes
-    df_commuting_dist = context.stage("data.od.average_commuting_distance").rename(columns={"mean_commuting_distance":"commuting_distance"}) #### ML
-    df_distances = context.stage("data.spatial.centroid_distances").rename(columns={"centroid_distance":"commuting_distance"})  #### ML
+    # Households dataframe
+    df_households = df_population.rename(columns = { "household_income": "income" }).drop_duplicates("household_id")
+    columns_households = ["household_id", "home_commune", "income", "household_type", "car_availability", "bike_availability", # "household_type" added ML
+                           "number_of_vehicles", "number_of_bikes", "census_household_id"]
+    
+    if car_fleet_synthesis_method == "household_assignment" : # Added ML
+        # Add accesssibility proxy (public transport modal share) for home and work/education communes
+        df_pt = context.stage("data.od.public_transport_share") #### ML
+        df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="commune_id", right_on="commune").rename(columns={"PT_share":"PT_share_home"})
+        df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="work_education_commune", right_on="commune").rename(columns={"PT_share":"PT_share_work"})
+        
+        # Select population attributes related to households
+        df_households[columns_households].to_csv("%s/%shouseholds_main_characteristics.csv" % (output_path, output_prefix), sep = ";", index = None, lineterminator = "\n")
+        columns_households.extend(["parking", "housing_type", "building_age", "PT_share_home"
+            "ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt" # to compare
+        ])
 
-    # Add individuals commuting distance
-    df_population_commuting = df_population[df_population["work_commune"].isnan()==False]  #### ML
-    df_population_commuting = pd.merge(left=df_population_commuting, right=df_distances, how="left", left_on=["home_commune", "work_commune"] ,right_on=["origin_id", "destination_id"])  #### ML
-    df_population_no_commute = df_population[df_population["work_commune"].isnan()==True]  #### ML
-    df_population_no_commute = pd.merge(left=df_population_no_commute, right=df_commuting_dist, how="left", left_on="home_commune", right_on="commune") #### ML
-    df_population = pd.concat([df_population_commuting, df_population_no_commute]).sort_index()  #### ML
-    return df_population
+        # Add other explanatory attributes for car type choice
+        df_households_detailed = df_population.copy()
+        df_age = df_households_detailed.groupby(["household_id"])["age"].max()
+        df_parking_work = df_households_detailed.groupby(["household_id"])["parking_at_workplace"].max()
+        df_commuting = df_households_detailed.loc[df_households_detailed.groupby(["household_id"])["commuting_distance"].max(),["household_id","commuting_distance","PT_share_work"]]
+        df_N_workers = df_households_detailed[["household_id","employed"]].astype({"employed":str}).replace({"True": 1, "False": 0})
+        df_N_workers = df_N_workers.groupby(["household_id"])["employed"].sum()
+        df_N_workers = df_N_workers['employed'].apply(lambda x: str(x) if x<2 else "2+").rename(columns={"employed":"N_workers"})
+        df_households = pd.merge([df_households[columns_households], df_age, df_parking_work, df_commuting, df_N_workers], 
+                                 how="left", on="household_id") 
+    else :
+        df_households = df_households[columns_households]
+
+    # Check consistency
+    final_size = len(df_population)
+    final_person_ids = len(df_population["person_id"].unique())
+    final_household_ids = len(df_households["household_id"].unique())
+    assert initial_size == final_size
+    assert initial_person_ids == final_person_ids
+    assert initial_household_ids == final_household_ids
+    
+    return df_population, df_households
