@@ -68,15 +68,15 @@ def execute(context):
     car_fleet_synthesis_method = context.config("vehicles_method", "default")
 
     # Prepare persons
-    df_persons = context.stage("synthesis.population.enriched").rename(
+    df_households, df_persons = context.stage("synthesis.population.enriched")
+    df_persons = df_persons.rename(
         columns = { "has_license": "has_driving_license" }
     )
     columns_persons = ["person_id", "household_id", "age", "employed", "sex", "socioprofessional_class",
                        "has_driving_license", "has_pt_subscription", "census_person_id", "hts_id", 
-                       "home_commune", "work_commune", "household_type"] # Added ML
+                       "commune_id", "work_education_commune", "household_type", "commuting_distance"] # Added ML
     if car_fleet_synthesis_method == "household_assignment" : # Added ML
-        df_persons[columns_persons].to_csv("%s/%spersons_main_features.csv" % (output_path, output_prefix), sep = ";", index = None, lineterminator = "\n")
-        columns_persons.append(["PT_share_home","PT_share_work", "commuting_distance"]) # Added ML
+        columns_persons.extend(["PT_share_home","PT_share_work"]) # Added ML
     df_persons = df_persons[columns_persons]
     if "csv" in output_formats:
         df_persons.to_csv("%s/%spersons.csv" % (output_path, output_prefix), sep = ";", index = None, lineterminator = "\n")
@@ -128,31 +128,8 @@ def execute(context):
         df_activities.to_parquet("%s/%sactivities.parquet" % (output_path, output_prefix))
 
     # Prepare households
-    df_households = context.stage("synthesis.population.enriched").rename(
-        columns = { "household_income": "income" }
-    ).drop_duplicates("household_id")
-
     df_households = pd.merge(df_households,df_activities[df_activities["purpose"] == "home"][["household_id",
-        "iris_id", "commune_id","departement_id","region_id"]].drop_duplicates("household_id"),how="left")
-    columns_households = ["household_id","iris_id", "commune_id", "departement_id","region_id",
-                          "car_availability", "bike_availability", "number_of_vehicles", "household_type" # "household_type" added ML
-                          "number_of_bikes", "income", "census_household_id"]
-    if car_fleet_synthesis_method == "household_assignment" : # Added ML
-        df_households[columns_households].to_csv("%s/%shouseholds_main_characteristics.csv" % (output_path, output_prefix), sep = ";", index = None, lineterminator = "\n")
-        columns_households.append(["parking", "housing_type", "building_age", "PT_share_home"
-            "ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt" # to compare
-        ])
-        df_households_detailed = context.stage("synthesis.population.enriched")
-        df_age = df_households_detailed.groupby(["household_id"])["age"].max()
-        df_parking_work = df_households_detailed.groupby(["household_id"])["parking_at_workplace"].max()
-        df_commuting = df_households_detailed.loc[df_households_detailed.groupby(["household_id"])["commuting_distance"].max(),["household_id","commuting_distance","PT_share_work"]]
-        df_N_workers = df_households_detailed[["household_id","employed"]].astype({"employed":str}).replace({"True": 1, "False": 0})
-        df_N_workers = df_N_workers.groupby(["household_id"])["employed"].sum()
-        df_N_workers = df_N_workers['employed'].apply(lambda x: str(x) if x<2 else "2+").rename(columns={"employed":"N_workers"})
-        df_households = pd.merge([df_households[columns_households], df_age, df_parking_work, df_commuting, df_N_workers], 
-                                 how="left", on="household_id")                         
-    else :
-        df_households = df_households[columns_households]
+        "iris_id", "departement_id","region_id"]].drop_duplicates("household_id"),how="left")
     if "csv" in output_formats:
         df_households.to_csv("%s/%shouseholds.csv" % (output_path, output_prefix), sep = ";", index = None, lineterminator = "\n")
     if "parquet" in output_formats:
