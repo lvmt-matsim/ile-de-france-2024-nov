@@ -49,9 +49,9 @@ def execute(context):
     df_total = df_commute.groupby(["origin_id"])["weight"].sum().reset_index().rename({"weight":"total_flow"}, axis = 1)
     df_commute = df_commute.groupby(["origin_id"])["cumulated_commuting_distance"].sum().reset_index()
     df_commute = pd.merge(left=df_commute, right=df_total, how="left", on = "origin_id")
-    df_commute["mean_commuting_distance"] = df_commute.apply(lambda row: row["cumulated_commuting_distance"] / row["total_flow"], axis=1)
+    df_commute["commuting_distance"] = df_commute.apply(lambda row: row["cumulated_commuting_distance"] / row["total_flow"], axis=1)
 
     # Clean output df
-    df_commute = df_pt[["origin_id","mean_commuting_distance"]].rename(columns={"origin_id":"commune"})
+    df_commute = df_pt[["origin_id","commuting_distance"]].rename(columns={"origin_id":"commune_id"})
     df_commute.to_csv("%s/%mean_commuting_distance.csv" % (output_path, output_prefix), sep=";", index=None)
     return df_commute
