@@ -22,6 +22,7 @@ def configure(context):
     context.config("output_path") # ML
     context.config("output_prefix", "ile_de_france_") # ML
     context.config("vehicles_method", "default") # ML
+    context.config("population_with_mobility_variables", False) # ML
     # HTS data
     hts = context.config("hts")
     context.stage("data.hts.selected", alias = "hts")
@@ -34,6 +35,9 @@ def execute(context):
     output_path = context.config("output_path") # ML
     output_prefix = context.config("output_prefix") # ML
     car_fleet_synthesis_method = context.config("vehicles_method", "default") # ML
+    add_mobility_variables = context.config("population_with_mobility_variables") # ML
+    if car_fleet_synthesis_method == "household_assignment" : # ML
+        add_mobility_variables = True
     
     # Select population columns
     df_population = context.stage("synthesis.population.sampled")[[
@@ -59,7 +63,7 @@ def execute(context):
 
     person_hts_columns = ["hts_id", "hts_household_id", "has_license", "has_pt_subscription", "is_passenger"]
     household_hts_columns = ["hts_household_id", "number_of_bikes"]
-    if car_fleet_synthesis_method == "household_assignment" : # Added, ML
+    if add_mobility_variables : # Added, ML
         person_hts_columns.append("parking_at_workplace")
         household_hts_columns.extend(["ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt"])
     df_population = pd.merge(df_population, df_hts_persons[person_hts_columns], on = "hts_id")
@@ -111,9 +115,11 @@ def execute(context):
     df_population_commuting = df_population[df_population["work_education_commune"].isnan()==False]
     df_population_commuting = pd.merge(left=df_population_commuting, right=df_distances, how="left", left_on=["commune_id", "work_education_commune"] ,right_on=["origin_id", "destination_id"])
     df_population_no_commute = df_population[df_population["work_education_commune"].isnan()==True]
-    if car_fleet_synthesis_method == "household_assignment" : # Impute the mean commuting distance within the residence commune if no commuting distance
+    if add_mobility_variables : # Impute the mean commuting distance within the residence commune if no commuting distance
+        df_population_commuting["imputed_commuting_distance"] = False
         df_commuting_dist = context.stage("data.od.average_commuting_distance")
-        df_population_no_commute = pd.merge(left=df_population_no_commute, right=df_commuting_dist, how="left", on="commune_id")
+        df_population_ = pd.merge(left=df_population_no_commute, right=df_commuting_dist, how="left", on="commune_id")
+        df_population_no_commute["imputed_commuting_distance"] = True
     df_population = pd.concat([df_population_commuting, df_population_no_commute]).sort_index()
 
     # Households dataframe
@@ -121,7 +127,7 @@ def execute(context):
     columns_households = ["household_id", "home_commune", "income", "household_type", "car_availability", "bike_availability", # "household_type" added ML
                            "number_of_vehicles", "number_of_bikes", "census_household_id"]
     
-    if car_fleet_synthesis_method == "household_assignment" : # Added ML
+    if add_mobility_variables : # Added ML
         # Add accesssibility proxy (public transport modal share) for home and work/education communes
         df_pt = context.stage("data.od.public_transport_share") #### ML
         df_population = pd.merge(left=df_population, right=df_pt, how="left", left_on="commune_id", right_on="commune").rename(columns={"PT_share":"PT_share_home"})
