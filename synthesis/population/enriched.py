@@ -114,13 +114,16 @@ def execute(context):
     df_distances = context.stage("data.spatial.centroid_distances").rename(columns={"centroid_distance":"commuting_distance"})
     df_population_commuting = df_population[df_population["work_education_commune"].isnan()==False]
     df_population_commuting = pd.merge(left=df_population_commuting, right=df_distances, how="left", left_on=["commune_id", "work_education_commune"] ,right_on=["origin_id", "destination_id"])
-    df_population_no_commute = df_population[df_population["work_education_commune"].isnan()==True]
+    df_population_no_commute = df_population[df_population[("work_education_commune"].isnan()==True) & (df_population["employed"]==True)]
+    df_population_unemployed = df_population[df_population[("work_education_commune"].isnan()==True) & (df_population["employed"]==False)]
+    df_population_unemployed["commuting_distance"] = 0.0
     if add_mobility_variables : # Impute the mean commuting distance within the residence commune if no commuting distance
         df_population_commuting["imputed_commuting_distance"] = False
+        df_population_unemployed["imputed_commuting_distance"] = False
         df_commuting_dist = context.stage("data.od.average_commuting_distance")
-        df_population_ = pd.merge(left=df_population_no_commute, right=df_commuting_dist, how="left", on="commune_id")
+        df_population_no_commute = pd.merge(left=df_population_no_commute, right=df_commuting_dist, how="left", on="commune_id")
         df_population_no_commute["imputed_commuting_distance"] = True
-    df_population = pd.concat([df_population_commuting, df_population_no_commute]).sort_index()
+    df_population = pd.concat([df_population_commuting, df_population_no_commute, df_population_unemployed]).sort_index()
 
     # Households dataframe
     df_households = df_population.rename(columns = { "household_income": "income" }).drop_duplicates("household_id")
