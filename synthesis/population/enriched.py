@@ -43,7 +43,7 @@ def execute(context):
     df_population = context.stage("synthesis.population.sampled")[[
         "person_id", "household_id",
         "census_person_id", "census_household_id",
-        "age", "sex", "employed", "studies", "age_range"
+        "age", "sex", "employed", "studies", "age_range",
         "number_of_vehicles", "household_size", "consumption_units", "socioprofessional_class", 
         "housing_type", "household_type", "parking", "building_age" # Added, ML
     ]]
