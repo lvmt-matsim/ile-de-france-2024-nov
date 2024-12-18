@@ -54,6 +54,13 @@ def execute(context):
     # Age
     df["age"] = df["AGED"].apply(lambda x: "0" if x == "000" else x.lstrip("0")).astype(int)
 
+    # Add age range for education
+    df["age_range"] = "higher_education"
+    df[df["age"]<=10,"age_range"] = "primary_school"
+    df[df["age"].between(11,14),"age_range"] = "middle_school"
+    df[df["age"].between(15,17),"age_range"] = "high_school"
+    df["age_range"] = df["age_range"].astype("category")
+
     # Clean COUPLE
     df["couple"] = df["COUPLE"] == "1"
 
@@ -126,7 +133,7 @@ def execute(context):
     df = df[[
         "person_id", "household_id", "weight",
         "iris_id", "commune_id", "departement_id",
-        "age", "sex", "couple",
+        "age", "sex", "couple", "age_range",
         "commute_mode", "employed",
         "studies", "number_of_vehicles", "household_size",
         "consumption_units", "socioprofessional_class",
