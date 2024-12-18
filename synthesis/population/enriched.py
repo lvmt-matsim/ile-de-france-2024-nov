@@ -43,7 +43,7 @@ def execute(context):
     df_population = context.stage("synthesis.population.sampled")[[
         "person_id", "household_id",
         "census_person_id", "census_household_id",
-        "age", "sex", "employed", "studies",
+        "age", "sex", "employed", "studies", "age_range"
         "number_of_vehicles", "household_size", "consumption_units", "socioprofessional_class", 
         "housing_type", "household_type", "parking", "building_age" # Added, ML
     ]]
@@ -102,13 +102,6 @@ def execute(context):
     df_population.loc[df_population["number_of_bikes"] < df_population["household_size"], "bike_availability"] = "some"
     df_population.loc[df_population["number_of_bikes"] == 0, "bike_availability"] = "none"
     df_population["bike_availability"] = df_population["bike_availability"].astype("category")
-    
-    # Add age range for education
-    df_population["age_range"] = "higher_education"
-    df_population.loc[df_population["age"]<=10,"age_range"] = "primary_school"
-    df_population.loc[df_population["age"].between(11,14),"age_range"] = "middle_school"
-    df_population.loc[df_population["age"].between(15,17),"age_range"] = "high_school"
-    df_population["age_range"] = df_population["age_range"].astype("category")
 
     # Add individuals commuting distance  # Added ML
     df_distances = context.stage("data.spatial.centroid_distances").rename(columns={"centroid_distance":"commuting_distance"})
