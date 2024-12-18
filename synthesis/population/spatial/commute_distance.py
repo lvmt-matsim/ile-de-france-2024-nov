@@ -1,11 +1,11 @@
 import pandas as pd
 
 def configure(context):
-    context.stage("synthesis.population.enriched")
+    context.stage("synthesis.population.matched")
     context.stage("data.hts.commute_distance")
 
 def execute(context):
-    df_matching = context.stage("synthesis.population.enriched")
+    df_matching = context.stage("synthesis.population.matched")
     df_commute_distance = context.stage("data.hts.commute_distance")
 
     df_work = pd.merge(
