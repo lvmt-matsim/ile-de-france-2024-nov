@@ -8,7 +8,7 @@ Transforms the synthetic trip table into a synthetic activity table.
 """
 
 def configure(context):
-    context.stage("synthesis.population.enriched")
+    context.stage("synthesis.population.matched")
     context.stage("synthesis.population.trips")
 
 def execute(context):
@@ -49,7 +49,7 @@ def execute(context):
     ]).sort_values(by = ["person_id", "activity_index"])
 
     # Add activities for people without trips
-    df_missing = context.stage("synthesis.population.enriched")
+    df_missing = context.stage("synthesis.population.matched")
     df_missing = df_missing[~df_missing["person_id"].isin(df_activities["person_id"])][["person_id"]]
 
     df_missing["activity_index"] = 0
