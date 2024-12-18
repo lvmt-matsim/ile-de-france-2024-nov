@@ -8,7 +8,7 @@ def configure(context):
     context.stage("synthesis.locations.work")
 
     context.stage("synthesis.population.spatial.home.zones")
-    context.stage("synthesis.population.enriched")
+    context.stage("synthesis.population.sampled")
     context.stage("synthesis.population.trips")
 
     context.config("output_path")
@@ -110,7 +110,7 @@ def process(context, purpose, random, df_persons, df_od, df_locations,step_name)
 
 def execute(context):
     # Prepare population data
-    df_persons = context.stage("synthesis.population.enriched")[["person_id", "household_id", "age_range"]].copy()
+    df_persons = context.stage("synthesis.population.sampled")[["person_id", "household_id", "age_range"]].copy()
     df_trips = context.stage("synthesis.population.trips")
 
     df_persons["has_work_trip"] = df_persons["person_id"].isin(df_trips[
