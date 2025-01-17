@@ -21,8 +21,10 @@ def configure(context):
     context.stage("synthesis.population.spatial.locations") # ML
     context.config("output_path") # ML
     context.config("output_prefix", "ile_de_france_") # ML
-    context.config("vehicles_method", "default") # ML
-    context.config("population_with_mobility_variables", False) # ML
+    if not context.config("vehicles_method"):
+        context.config("vehicles_method", "default") # ML
+    if not context.config("population_with_mobility_variables"):
+        context.config("population_with_mobility_variables", False) # ML
     # HTS data
     hts = context.config("hts")
     context.stage("data.hts.selected", alias = "hts")
@@ -34,7 +36,7 @@ def configure(context):
 def execute(context):
     output_path = context.config("output_path") # ML
     output_prefix = context.config("output_prefix") # ML
-    car_fleet_synthesis_method = context.config("vehicles_method", "default") # ML
+    car_fleet_synthesis_method = context.config("vehicles_method") # ML
     add_mobility_variables = context.config("population_with_mobility_variables") # ML
     if car_fleet_synthesis_method == "household_assignment" : # ML
         add_mobility_variables = True
@@ -73,8 +75,8 @@ def execute(context):
     df_locations = context.stage("synthesis.population.spatial.locations")[["person_id", "purpose", "commune_id"]] # Added, ML
     df_work_education = df_locations[df_locations.purpose.isin(["work", "education"])].reset_index(drop=True).rename(columns={"commune_id":"work_education_commune"}) # Added, ML
     df_home = df_locations[df_locations.purpose == "home"].reset_index(drop=True) # Added, ML
-    df_population = pd.merge(left=df_population, right=df_home["person_id", "commune_id"], how="left", on="person_id") # Added, ML
-    df_population = pd.merge(left=df_population, right=df_work_education["person_id", "work_education_commune"], how="left", on="person_id") # Added, ML
+    df_population = pd.merge(left=df_population, right=df_home[["person_id", "commune_id"]], how="left", on="person_id") # Added, ML
+    df_population = pd.merge(left=df_population, right=df_work_education[["person_id", "work_education_commune"]], how="left", on="person_id") # Added, ML
 
     # Check BYIN, to remove !
     df_population.to_csv("%s/%spopulation_test.csv" % (output_path, output_prefix), sep=";", index=None)
@@ -105,10 +107,10 @@ def execute(context):
 
     # Add individuals commuting distance  # Added ML
     df_distances = context.stage("data.spatial.centroid_distances").rename(columns={"centroid_distance":"commuting_distance"})
-    df_population_commuting = df_population[df_population["work_education_commune"].isnan()==False]
+    df_population_commuting = df_population[df_population["work_education_commune"].isna()==False]
     df_population_commuting = pd.merge(left=df_population_commuting, right=df_distances, how="left", left_on=["commune_id", "work_education_commune"] ,right_on=["origin_id", "destination_id"])
-    df_population_no_commute = df_population[(df_population["work_education_commune"].isnan()==True) & (df_population["employed"]==True))]
-    df_population_unemployed = df_population[(df_population[("work_education_commune"].isnan()==True) & (df_population["employed"]==False)]
+    df_population_no_commute = df_population[(df_population["work_education_commune"].isna()==True) & (df_population["employed"]==True))]
+    df_population_unemployed = df_population[(df_population[("work_education_commune"].isna()==True) & (df_population["employed"]==False)]
     df_population_unemployed["commuting_distance"] = 0.0
     if add_mobility_variables : # Impute the mean commuting distance within the residence commune if no commuting distance
         df_population_commuting["imputed_commuting_distance"] = False
