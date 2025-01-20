@@ -21,10 +21,8 @@ def configure(context):
     context.stage("synthesis.population.spatial.locations") # ML
     context.config("output_path") # ML
     context.config("output_prefix", "ile_de_france_") # ML
-    if not context.config("vehicles_method"):
-        context.config("vehicles_method", "default") # ML
-    if not context.config("population_with_mobility_variables"):
-        context.config("population_with_mobility_variables", False) # ML
+    context.config("vehicles_method", "default") # ML
+    context.config("population_with_mobility_variables", False) # ML
     # HTS data
     hts = context.config("hts")
     context.stage("data.hts.selected", alias = "hts")
