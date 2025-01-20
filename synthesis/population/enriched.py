@@ -122,7 +122,7 @@ def execute(context):
 
     # Households dataframe
     df_households = df_population.rename(columns = { "household_income": "income" }).drop_duplicates("household_id")
-    columns_households = ["household_id", "home_commune", "income", "household_type", "car_availability", "bike_availability", # "household_type" added ML
+    columns_households = ["household_id", "commune_id", "income", "household_type", "car_availability", "bike_availability", # "household_type" added ML
                            "number_of_vehicles", "number_of_bikes", "census_household_id"]
     
     if add_mobility_variables : # Added ML
