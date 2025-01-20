@@ -109,13 +109,13 @@ def execute(context):
     df_population_commuting = pd.merge(left=df_population_commuting, right=df_distances, how="left", left_on=["commune_id", "work_education_commune"] ,right_on=["origin_id", "destination_id"])
     df_population_no_commute = df_population[(df_population["work_education_commune"].isna()==True) & (df_population["employed"]==True))]
     df_population_unemployed = df_population[(df_population[("work_education_commune"].isna()==True) & (df_population["employed"]==False)]
-    df_population_unemployed["commuting_distance"] = 0.0
+    df_population_unemployed = df_population_unemployed.assign(commuting_distance = 0.0) # df_population_unemployed["commuting_distance"] = 0.0
     if add_mobility_variables : # Impute the mean commuting distance within the residence commune if no commuting distance
-        df_population_commuting["imputed_commuting_distance"] = False
-        df_population_unemployed["imputed_commuting_distance"] = False
+        df_population_commuting = df_population_commuting.assign(imputed_commuting_distance = False) # df_population_commuting["imputed_commuting_distance"] = False
+        df_population_unemployed = df_population_unemployed.assign(imputed_commuting_distance = False) # df_population_unemployed["imputed_commuting_distance"] = False
         df_commuting_dist = context.stage("data.od.average_commuting_distance")
         df_population_no_commute = pd.merge(left=df_population_no_commute, right=df_commuting_dist, how="left", on="commune_id")
-        df_population_no_commute["imputed_commuting_distance"] = True
+        df_population_no_commute = df_population_no_commute.assign(imputed_commuting_distance = True) # df_population_no_commute["imputed_commuting_distance"] = True
     df_population = pd.concat([df_population_commuting, df_population_no_commute, df_population_unemployed]).sort_index()
 
     # Households dataframe
@@ -139,7 +139,7 @@ def execute(context):
         df_households_detailed = df_population.copy()
         df_age = df_households_detailed.groupby(["household_id"])["age"].max()
         df_parking_work = df_households_detailed.groupby(["household_id"])["parking_at_workplace"].max()
-        df_commuting = df_households_detailed.loc[df_households_detailed.groupby(["household_id"])["commuting_distance"].max(),["household_id","commuting_distance","PT_share_work"]]
+        df_commuting = df_households_detailed.loc[df_households_detailed.groupby(["household_id"])["commuting_distance"].max().index,["household_id","commuting_distance","PT_share_work"]]
         df_N_workers = df_households_detailed[["household_id","employed"]].astype({"employed":str}).replace({"True": 1, "False": 0})
         df_N_workers = df_N_workers.groupby(["household_id"])["employed"].sum()
         df_N_workers = df_N_workers['employed'].apply(lambda x: str(x) if x<2 else "2+").rename(columns={"employed":"N_workers"})
