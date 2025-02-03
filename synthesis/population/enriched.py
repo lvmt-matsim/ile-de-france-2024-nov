@@ -131,7 +131,7 @@ def execute(context):
         
         # Select population attributes related to households
         df_households[columns_households].to_csv("%s/%shouseholds_main_characteristics.csv" % (output_path, output_prefix), sep = ";", index = None, lineterminator = "\n")
-        columns_households.extend(["parking", "housing_type", "building_age", "PT_share_home"
+        columns_households.extend(["parking", "housing_type", "building_age", "PT_share_home",
             "ENERGV1_egt", "APMCV1_egt","ENERGV2_egt", "APMCV2_egt","ENERGV3_egt", "APMCV3_egt","ENERGV4_egt", "APMCV4_egt" # to compare
         ])
 
